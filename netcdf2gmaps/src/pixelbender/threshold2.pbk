@@ -1,0 +1,30 @@
+<languageVersion : 1.0;>
+kernel ChannelScramblerFilter
+<
+namespace : "com.vizzuality.rastore";
+vendor : "Vizzuality";
+version : 1;description : "Threshold filter for Rastore Map App";
+>
+{
+    input image4 inputImage;
+    parameter float threshold
+    < minValue: float(0.0);
+      maxValue: float(1.0);
+      defaultValue: float(0.85);>;
+      
+
+    output pixel4 outPixel;
+    void evaluatePixel() {
+    
+        pixel4 outColor = pixel4( 0.55, 0.73, 0.06, 1.0 );
+        pixel4 inColor = pixel4( 0.0, 0.0, 0.0, 0.0 );
+        pixel4 pix = sampleNearest( inputImage, outCoord() );
+
+
+        if(pix.b <= threshold) {
+            outPixel = inColor;
+        } else {
+            outPixel = outColor;
+        }
+    }
+}
