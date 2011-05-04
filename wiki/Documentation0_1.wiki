@@ -1,0 +1,40 @@
+#summary Draft documentation version 0.1
+
+NetCDF2GMaps Project Documentation
+
+1) A Command line tool was built:
+
+The function of this Command line tool is: to take NetCDF file and run a program that generates
+Image Overlays in Jpeg format
+
+2) It was Generated an Json file that presents Image Overlay file list and the metadata
+
+The Metadata that needs to be collected for each visualization looks like that on a json file:
+
+{
+    "imagesOverlays":[
+        "http://s3dsfdfdf/1992.jpg",
+        "http://s3dsfdfdf/1993.jpg",
+        "http://s3dsfdfdf/1994.jpg",
+        "http://s3dsfdfdf/1995.jpg",
+        "http://s3dsfdfdf/1995_2.jpg"
+    ],
+    "description":"This is an example experiment",
+    "author":"brasil@home",
+    "more_info_url":"http://brasilathome.org",
+    "bbox_minx":"-180",
+    "bbox_miny":"-85",
+    "bbox_maxx":"180",
+    "bbox_maxy":"85"
+}
+
+3) A Flash application was built:
+
+It goes to a visualization tool on the web and write the overlay URL
+
+When you open the web browser, the default is to open an UI to enter the URL of the NetCDF2GMaps URL file.
+Alternatively, the URL can be passed directly on the web browser
+
+Then the Overlays+Json metadata file are uploaded to a web server
+
+4) The Website describing the project is at xxx.xx.xxx.xx
