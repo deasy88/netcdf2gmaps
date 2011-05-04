@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" minWidth="500" minHeight="300" xmlns:maps="com.google.maps.*" backgroundColor="#FFFFFF" currentState="loading">
+	<mx:Script>
+		<![CDATA[
+			import com.abdulqabiz.utils.QueryString;
+			import com.google.maps.LatLng;
+			import com.google.maps.LatLngBounds;
+			import com.google.maps.MapEvent;
+			import com.google.maps.MapMoveEvent;
+			import com.google.maps.MapOptions;
+			import com.google.maps.MapType;
+			import com.google.maps.overlays.GroundOverlay;
+			import com.google.maps.overlays.TileLayerOverlay;
+			import com.greensock.TweenLite;
+			import com.vizzuality.components.SliderThumbGmba;
+			import com.vizzuality.maps.BasicLayer;
+			import com.vizzuality.maps.RasterLayer;
+			
+			import entity.Entity;
+			
+			import mx.core.BitmapAsset;
+			import mx.events.SliderEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.mxml.HTTPService;
+			
+			[Embed("pixelbender/threshold3.pbj", mimeType="application/octet-stream")]
+			private var RasterFilter:Class;	
+			[Embed(source='pixelbender/gradient.png')]
+			private var GradientImage:Class;
+			private var gradientImg:BitmapData;
+			
+			private var rasterLayer:RasterLayer;
+			private var rasterTileOverlay:TileLayerOverlay;     
+			private var taxonRasterLayer:BasicLayer;	        	
+			private var taxonRasterTileOverlay:TileLayerOverlay;   
+			private var shader:Shader; 
+			private var filter:ShaderFilter; 	
+			public var model_id:String;
+			
+			public var currentGo:GroundOverlay;
+			public var previousGo:GroundOverlay;
+			
+			public var metadata_file_url:String;
+			
+			
+			protected function map_mapevent_mappreinitializeHandler(event:MapEvent):void {
+				
+				this.stage.addEventListener(FullScreenEvent.FULL_SCREEN, fullScreenHandler);
+				var opts:MapOptions = new MapOptions({mapType:MapType.NORMAL_MAP_TYPE,center:new LatLng(20, 20),zoom:2});
+				map.setInitOptions(opts);
+			}
+			
+			
+			protected function map_mapevent_mapreadyHandler(event:MapEvent):void {
+				
+				
+				//center the map
+				var llCorner:LatLng = new LatLng(40.3353611,-3.7744611);
+				var utCorner:LatLng = new LatLng(40.5297944,-3.5800278);
+				var bounds:LatLngBounds = new LatLngBounds(llCorner,utCorner);
+				map.setCenter(bounds.getCenter(),map.getBoundsZoomLevel(bounds) +1 );				
+				
+				createOverlay("1","0");
+				
+				
+				if (metadata_file_url!=null) {
+					currentState="";
+				} else {
+					currentState="metadata_url";
+				}
+				
+			}
+			
+			public function createOverlay(day:String,hour:String):void {
+				previousGo = currentGo;
+				var rl:Loader = new Loader();
+				var go:GroundOverlay;
+				rl.contentLoaderInfo.addEventListener(Event.COMPLETE, function(e:Event):void {
+					go = new GroundOverlay(
+						rl,
+						new LatLngBounds(new LatLng(40.3353611,-3.7744611), new LatLng(40.5297944,-3.5800278)));
+					go.foreground.alpha=0;
+					go.foreground.filters=[filter];
+					map.addOverlay(go);
+					TweenLite.to(go.foreground,0.3,{alpha:0.6});
+					
+					if(previousGo) {
+						TweenLite.to(previousGo.foreground,0.5,{alpha:0,onComplete:onGoOut});
+					}
+					currentGo=go;
+				});
+				rl.load(new URLRequest("tiles/2011/"+day+"/"+hour+".png"));
+			}
+			
+			public function onGoOut():void {
+				map.removeOverlay(previousGo);				
+			}
+			
+			public function sliderAltitude_changeHandler(event:SliderEvent):void {
+				createOverlay(percentageSlider.value.toString(),"0");
+			}			
+			
+			
+			
+			public function fullScreenHandler(evt:FullScreenEvent):void {
+				
+				if (evt.fullScreen) {
+					//fullScreenButton.setStyle("styleName","fullScreenIn");
+				} else {
+					//fullScreenButton.setStyle("styleName","fullScreenOut");
+				}
+			}	
+			public function toggleFullScreen():void{
+				try {
+					switch (Application.application.stage.displayState) {
+						case StageDisplayState.FULL_SCREEN:
+							Application.application.stage.displayState = StageDisplayState.NORMAL;
+							fullScreenButton.setStyle("styleName","fullScreenOut");
+							break;
+						default:
+							Application.application.stage.displayState = StageDisplayState.FULL_SCREEN;
+							fullScreenButton.setStyle("styleName","fullScreenIn");
+							break;
+					}
+				} catch (err:SecurityError) {
+					// ignore
+					trace(err.message);
+				}
+			}				
+			
+			private function onClickZoomIn():void {
+				if(map.getZoom()<8) {
+					map.setZoom(map.getZoom()+1);
+				} 
+				if(map.getZoom()==8) {
+					btnZoomIn.alpha=0.3;
+				} else {
+					btnZoomIn.alpha=1;
+					btnZoomOut.alpha=1;
+				}
+			}
+			
+			private function onClickZoomOut():void {
+				if(map.getZoom()>1){
+					map.setZoom(map.getZoom()-1);
+				}
+				if(map.getZoom()==1) {
+					btnZoomOut.alpha=0.3;
+				} else {
+					btnZoomOut.alpha=1;
+					btnZoomIn.alpha=1;
+				}
+				
+			}			
+			
+			
+			
+			public var currentStep:Number=0;
+			public var timer:Timer = new Timer(700);
+			
+			public function play(event:MouseEvent):void
+			{
+				timer.addEventListener(TimerEvent.TIMER,function(ev:TimerEvent):void {
+					currentStep++;
+					if(currentStep==32) {
+						currentStep=1;
+					}
+					percentageSlider.value=currentStep;
+					createOverlay(percentageSlider.value.toString(),"0");
+				});
+				timer.start();
+			}
+			
+			public function stop(event:MouseEvent):void {
+				timer.stop();
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:Style source="com/vizzuality/skin/style.css"/>
+	<mx:states>
+		<mx:State name="loading">
+			<mx:AddChild position="lastChild">
+				<mx:Canvas left="0" top="0" right="0" bottom="0" backgroundColor="#252525" backgroundAlpha="0.75">
+					<mx:Label text="Loading..." horizontalCenter="0" verticalCenter="0" fontSize="20" color="#ECECEC"/>
+				</mx:Canvas>
+			</mx:AddChild>
+		</mx:State>
+		<mx:State name="metadata_url">
+			<mx:AddChild position="lastChild">
+				<mx:Canvas left="0" top="0" right="0" bottom="0" backgroundColor="#252525" backgroundAlpha="0.85">
+					<mx:Label text="Please enter the URL for the netCDF2gmaps metadata URL" color="#FFFFFF" fontSize="14" horizontalCenter="0" verticalCenter="-27"/>
+					<mx:TextInput width="324" horizontalCenter="-24" verticalCenter="0"/>
+					<mx:Button label="Go" color="#000000" horizontalCenter="166" verticalCenter="0"/>
+				</mx:Canvas>
+			</mx:AddChild>
+		</mx:State>
+	</mx:states>
+	<maps:Map id="map" 
+			  key="ABQIAAAAtDJGVn6RztUmxjnX5hMzjRQiT4et8k-_xArSRRdlMMdNz4z1KBSlOiYWBlkQXeUrq54umkuZGMBTXg"
+			  mapevent_mappreinitialize="map_mapevent_mappreinitializeHandler(event)" mapevent_mapready="map_mapevent_mapreadyHandler(event)"  top="0" bottom="60" left="0" right="0"/>
+	<mx:Canvas id="sliderCanvas" backgroundColor="#232323" bottom="0" height="60" right="0" left="0" backgroundAlpha="1.0">
+		<mx:HSlider id="percentageSlider" enabled="true" left="100" right="20" minimum="0" maximum="31" 
+					showDataTip="false"  value="0"
+					change="sliderAltitude_changeHandler(event)"
+					thumbRelease="sliderAltitude_changeHandler(event)"
+					thumbCount="1" liveDragging="true" 
+					sliderThumbClass="{SliderThumbGmba}"
+					showTrackHighlight="true" snapInterval="1" verticalCenter="-9"/>
+		<mx:Label y="39" text="1" fontFamily="Roses are FF0000_8pt_st" color="#FFFFFF" left="20"/>
+		<mx:Label y="39" text="31" fontFamily="Roses are FF0000_8pt_st" color="#FFFFFF" right="20"/>
+		<mx:Button y="10" label="P" click="play(event)" left="5" width="37"/>
+		<mx:Button y="10" label="S" click="stop(event)" left="45" width="37"/>
+	</mx:Canvas>
+	<mx:Button width="20" height="20" label="fullscreen" color="#FFFFFF" fontSize="14" fontWeight="normal" click="toggleFullScreen()"
+			   useHandCursor="true" mouseChildren="false" buttonMode="true" styleName="fullScreenOut" id="fullScreenButton" enabled="true" right="10" top="10"/>
+	<mx:Button styleName="btnZoomIn" height="24" top="10"
+			   mouseChildren="false" buttonMode="true" useHandCursor="true" id="btnZoomIn" click="onClickZoomIn()" left="15" width="24"/>
+	
+	<mx:Button styleName="btnZoomOut" height="24" width="24" top="38"
+			   mouseChildren="false" buttonMode="true" useHandCursor="true" id="btnZoomOut" click="onClickZoomOut()" left="15"/>
+	
+	
+</mx:Application>

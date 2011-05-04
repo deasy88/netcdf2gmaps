@@ -1,0 +1,38 @@
+<languageVersion : 1.0;>
+
+kernel NewFilter
+<   namespace : "Your Namespace";
+    vendor : "Your Vendor";
+    version : 1;
+    description : "your description";
+>
+{
+    input image4 src;
+    input image4 heatmap;
+    output pixel4 dst;
+    parameter float threshold
+    < minValue: float(0.0);
+      maxValue: float(1.0);
+      defaultValue: float(0.85);>;    
+
+    void
+    evaluatePixel()
+    {
+    
+        pixel4 g = sampleNearest(src,outCoord());
+        
+        if(g.b <= threshold) {
+            dst = pixel4( 0.0, 0.0, 0.0, 0.0 );
+            //pixel4 bkg = sampleNearest(heatmap,float2(1.0,(g.b)*500.0));
+            //bkg.a = 0.3;
+            
+            //dst=bkg;
+        } else {
+            dst = sampleNearest(heatmap,float2(1.0,(g.b)*500.0));
+            //float norm = (g.b-threshold) / (1.0-threshold);
+            //dst = sampleNearest(heatmap,float2(1.0,norm*500.0));
+        }
+        
+        
+    }
+}
