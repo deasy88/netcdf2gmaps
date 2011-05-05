@@ -37,4 +37,17 @@ Alternatively, the URL can be passed directly on the web browser
 
 Then the Overlays+Json metadata file are uploaded to a web server
 
-4) The Website describing the project is at xxx.xx.xxx.xx
+4) More info about the Flash app:
+
+We created a project that lets you view data about climate. Was
+used with Flex integration with GoogleMaps. Basically the user will
+able to select a point on the map and after that will be displayed
+an animation-themed atmosphere over a given period of time.
+
+It was request that a development in Flash a dynamic display of images. But Flash MX doesn't support PNG files with transparency. So, the final decision-making was done in the Flex. The description of the
+algorithm of the basic image display is shown below:
+
+1) Parameters are defined in a metadata file as described above
+2) Loop with a display of images
+
+5) The Website describing the project is at http://code.google.com/p/netcdf2gmaps
