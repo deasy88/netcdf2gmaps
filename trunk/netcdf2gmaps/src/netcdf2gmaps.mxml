@@ -18,6 +18,8 @@
 			
 			import entity.Entity;
 			
+			import flash.net.navigateToURL;
+			
 			import mx.core.BitmapAsset;
 			import mx.events.SliderEvent;
 			import mx.rpc.events.ResultEvent;
@@ -40,26 +42,36 @@
 			public var currentGo:GroundOverlay;
 			public var previousGo:GroundOverlay;
 			
-			public var metadata_file_url:String;
+			public var metadata:Object;
+			public var mapbounds:LatLngBounds;
 			
 			
 			protected function map_mapevent_mappreinitializeHandler(event:MapEvent):void {
 				
 				this.stage.addEventListener(FullScreenEvent.FULL_SCREEN, fullScreenHandler);
-				var opts:MapOptions = new MapOptions({mapType:MapType.NORMAL_MAP_TYPE,center:new LatLng(20, 20),zoom:2});
+				var opts:MapOptions = new MapOptions({mapType:MapType.SATELLITE_MAP_TYPE,center:new LatLng(20, 20),zoom:2});
 				map.setInitOptions(opts);
 			}
 			
 			
+			
+			
 			protected function map_mapevent_mapreadyHandler(event:MapEvent):void {
 				
+				//try to get the metadata_file_url from parameters
+				var qs:QueryString = new QueryString();
 				
-				//center the map
-				var llCorner:LatLng = new LatLng(40.3353611,-3.7744611);
-				var utCorner:LatLng = new LatLng(40.5297944,-3.5800278);
-				var bounds:LatLngBounds = new LatLngBounds(llCorner,utCorner);
-				map.setCenter(bounds.getCenter(),map.getBoundsZoomLevel(bounds) +1 );				
+				if(qs.parameters.url!=null) { 
+					var jsonService:HTTPService = new HTTPService();
+					jsonService.url = qs.parameters.url;
+					jsonService.addEventListener(ResultEvent.RESULT,onMetadataDownload,false,0,true);
+					jsonService.send();	
+				} else {
+					currentState="metadata_url";
+				}
 				
+						
+				  /*
 				createOverlay("1","0");
 				
 				
@@ -67,20 +79,55 @@
 					currentState="";
 				} else {
 					currentState="metadata_url";
-				}
+				} */
 				
 			}
 			
-			public function createOverlay(day:String,hour:String):void {
+			public function onMetadataDownload(event:ResultEvent):void {
+				metadata = Entity.decodeJSON(event.result as String);
+				
+				
+				//Now we can do something with the map
+				//center to the map
+				var llCorner:LatLng = new LatLng(metadata.bbox_miny,metadata.bbox_minx);
+				var utCorner:LatLng = new LatLng(metadata.bbox_maxy,metadata.bbox_maxx);
+				mapbounds = new LatLngBounds(llCorner,utCorner);
+				map.setCenter(mapbounds.getCenter(),map.getBoundsZoomLevel(mapbounds));	
+				
+				//add metadata
+				description_label.text = metadata.description;
+				author_label.text = metadata.author;
+				
+				createOverlay(metadata.imagesOverlays[0]);
+				currentState="";
+				
+			}
+			
+
+			public function onMetadataUrlProvided():void {
+				currentState="loading";
+				var jsonService:HTTPService = new HTTPService();
+				jsonService.url = metadata_url_input.text;
+				jsonService.addEventListener(ResultEvent.RESULT,onMetadataDownload,false,0,true);
+				jsonService.send();	
+			}
+			
+			
+			
+			
+			
+			
+			
+			
+			public function createOverlay(url:String):void {
 				previousGo = currentGo;
 				var rl:Loader = new Loader();
 				var go:GroundOverlay;
 				rl.contentLoaderInfo.addEventListener(Event.COMPLETE, function(e:Event):void {
 					go = new GroundOverlay(
 						rl,
-						new LatLngBounds(new LatLng(40.3353611,-3.7744611), new LatLng(40.5297944,-3.5800278)));
+						mapbounds);
 					go.foreground.alpha=0;
-					go.foreground.filters=[filter];
 					map.addOverlay(go);
 					TweenLite.to(go.foreground,0.3,{alpha:0.6});
 					
@@ -89,7 +136,7 @@
 					}
 					currentGo=go;
 				});
-				rl.load(new URLRequest("tiles/2011/"+day+"/"+hour+".png"));
+				rl.load(new URLRequest(url));
 			}
 			
 			public function onGoOut():void {
@@ -97,7 +144,7 @@
 			}
 			
 			public function sliderAltitude_changeHandler(event:SliderEvent):void {
-				createOverlay(percentageSlider.value.toString(),"0");
+				//createOverlay(percentageSlider.value.toString(),"0");
 			}			
 			
 			
@@ -128,30 +175,7 @@
 				}
 			}				
 			
-			private function onClickZoomIn():void {
-				if(map.getZoom()<8) {
-					map.setZoom(map.getZoom()+1);
-				} 
-				if(map.getZoom()==8) {
-					btnZoomIn.alpha=0.3;
-				} else {
-					btnZoomIn.alpha=1;
-					btnZoomOut.alpha=1;
-				}
-			}
-			
-			private function onClickZoomOut():void {
-				if(map.getZoom()>1){
-					map.setZoom(map.getZoom()-1);
-				}
-				if(map.getZoom()==1) {
-					btnZoomOut.alpha=0.3;
-				} else {
-					btnZoomOut.alpha=1;
-					btnZoomIn.alpha=1;
-				}
 				
-			}			
 			
 			
 			
@@ -161,12 +185,12 @@
 			public function play(event:MouseEvent):void
 			{
 				timer.addEventListener(TimerEvent.TIMER,function(ev:TimerEvent):void {
-					currentStep++;
-					if(currentStep==32) {
-						currentStep=1;
+					if(currentStep==metadata.imagesOverlays.length) {
+						currentStep=0;
 					}
 					percentageSlider.value=currentStep;
-					createOverlay(percentageSlider.value.toString(),"0");
+					createOverlay(metadata.imagesOverlays[currentStep]);
+					currentStep++;
 				});
 				timer.start();
 			}
@@ -190,8 +214,8 @@
 			<mx:AddChild position="lastChild">
 				<mx:Canvas left="0" top="0" right="0" bottom="0" backgroundColor="#252525" backgroundAlpha="0.85">
 					<mx:Label text="Please enter the URL for the netCDF2gmaps metadata URL" color="#FFFFFF" fontSize="14" horizontalCenter="0" verticalCenter="-27"/>
-					<mx:TextInput width="324" horizontalCenter="-24" verticalCenter="0"/>
-					<mx:Button label="Go" color="#000000" horizontalCenter="166" verticalCenter="0"/>
+					<mx:TextInput width="324" horizontalCenter="-24" verticalCenter="0" id="metadata_url_input" text="http://philip.brohan.org.netcdf2gmaps.s3.amazonaws.com/sample_images_1924_pressures/pressures.test2.json" fontStyle="italic" textDecoration="none"/>
+					<mx:Button label="Go" color="#000000" horizontalCenter="166" verticalCenter="0" click="onMetadataUrlProvided()"/>
 				</mx:Canvas>
 			</mx:AddChild>
 		</mx:State>
@@ -213,12 +237,17 @@
 		<mx:Button y="10" label="S" click="stop(event)" left="45" width="37"/>
 	</mx:Canvas>
 	<mx:Button width="20" height="20" label="fullscreen" color="#FFFFFF" fontSize="14" fontWeight="normal" click="toggleFullScreen()"
-			   useHandCursor="true" mouseChildren="false" buttonMode="true" styleName="fullScreenOut" id="fullScreenButton" enabled="true" right="10" top="10"/>
-	<mx:Button styleName="btnZoomIn" height="24" top="10"
-			   mouseChildren="false" buttonMode="true" useHandCursor="true" id="btnZoomIn" click="onClickZoomIn()" left="15" width="24"/>
+			   useHandCursor="true" mouseChildren="false" buttonMode="true" styleName="fullScreenOut" id="fullScreenButton" enabled="true" right="10" top="60"/>
+	<mx:Button styleName="btnZoomIn" height="24" top="60"
+			   mouseChildren="false" buttonMode="true" useHandCursor="true" id="btnZoomIn" click="map.setZoom(map.getZoom()+1)" left="15" width="24"/>
 	
-	<mx:Button styleName="btnZoomOut" height="24" width="24" top="38"
-			   mouseChildren="false" buttonMode="true" useHandCursor="true" id="btnZoomOut" click="onClickZoomOut()" left="15"/>
+	<mx:Button styleName="btnZoomOut" height="24" width="24" top="88"
+			   mouseChildren="false" buttonMode="true" useHandCursor="true" id="btnZoomOut" click="map.setZoom(map.getZoom()-1)" left="15"/>
+	<mx:Canvas y="0" height="52" backgroundColor="#000000" backgroundAlpha="0.75" left="0" right="0">
+		<mx:Label x="10" y="10" text="Description" color="#FFFFFF" width="363" height="32" id="description_label"/>
+		<mx:Label y="10" text="author" color="#FFFFFF" width="185" height="19" textAlign="right" id="author_label" right="10"/>
+		<mx:Label y="30" text="more info" color="#FFFFFF" width="101" height="19" textAlign="right" textDecoration="underline" mouseChildren="false"  click="navigateToURL(new URLRequest(metadata.more_info_url));" right="10"/>
+	</mx:Canvas>
 	
 	
 </mx:Application>
