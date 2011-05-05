@@ -12,6 +12,7 @@
 			import com.google.maps.overlays.GroundOverlay;
 			import com.google.maps.overlays.TileLayerOverlay;
 			import com.greensock.TweenLite;
+			import com.vizzuality.DynamicImageOverlay;
 			import com.vizzuality.components.SliderThumbGmba;
 			import com.vizzuality.maps.BasicLayer;
 			import com.vizzuality.maps.RasterLayer;
@@ -45,6 +46,8 @@
 			public var metadata:Object;
 			public var mapbounds:LatLngBounds;
 			
+			[Bindable] public var currentFile:String="";
+			
 			
 			protected function map_mapevent_mappreinitializeHandler(event:MapEvent):void {
 				
@@ -70,17 +73,6 @@
 					currentState="metadata_url";
 				}
 				
-						
-				  /*
-				createOverlay("1","0");
-				
-				
-				if (metadata_file_url!=null) {
-					currentState="";
-				} else {
-					currentState="metadata_url";
-				} */
-				
 			}
 			
 			public function onMetadataDownload(event:ResultEvent):void {
@@ -92,14 +84,33 @@
 				var llCorner:LatLng = new LatLng(metadata.bbox_miny,metadata.bbox_minx);
 				var utCorner:LatLng = new LatLng(metadata.bbox_maxy,metadata.bbox_maxx);
 				mapbounds = new LatLngBounds(llCorner,utCorner);
-				map.setCenter(mapbounds.getCenter(),map.getBoundsZoomLevel(mapbounds));	
+				map.setCenter(mapbounds.getCenter(),map.getBoundsZoomLevel(mapbounds)+1);	
 				
 				//add metadata
 				description_label.text = metadata.description;
 				author_label.text = metadata.author;
 				
+				
+				
+				//Preload some images
+				for each(var url:String in metadata.imagesOverlays) {
+					var http_serv:HTTPService = new HTTPService();
+					http_serv.url = url;
+					http_serv.send();
+				}
+				
+/* 				var dio:DynamicImageOverlay = new DynamicImageOverlay(metadata.imagesOverlays);
+				var go:GroundOverlay = new GroundOverlay(dio,mapbounds);
+				map.addOverlay(go); */
+				
 				createOverlay(metadata.imagesOverlays[0]);
-				currentState="";
+				//wait a bit for images to load
+				var tim:Timer = new Timer(3000,1);
+				tim.addEventListener(TimerEvent.TIMER_COMPLETE,function(ev:TimerEvent):void {
+					currentState="";
+				});
+				tim.start();
+				
 				
 			}
 			
@@ -114,12 +125,11 @@
 			
 			
 			
-			
-			
-			
-			
-			
 			public function createOverlay(url:String):void {
+				
+				var parsed_url:Array = url.split("/");
+				currentFile = parsed_url[parsed_url.length-1];
+				
 				previousGo = currentGo;
 				var rl:Loader = new Loader();
 				var go:GroundOverlay;
@@ -231,10 +241,9 @@
 					thumbCount="1" liveDragging="true" 
 					sliderThumbClass="{SliderThumbGmba}"
 					showTrackHighlight="true" snapInterval="1" verticalCenter="-9"/>
-		<mx:Label y="39" text="1" fontFamily="Roses are FF0000_8pt_st" color="#FFFFFF" left="20"/>
-		<mx:Label y="39" text="31" fontFamily="Roses are FF0000_8pt_st" color="#FFFFFF" right="20"/>
-		<mx:Button y="10" label="P" click="play(event)" left="5" width="37"/>
-		<mx:Button y="10" label="S" click="stop(event)" left="45" width="37"/>
+		<mx:Label y="35" text="{currentFile}" fontFamily="Roses are FF0000_8pt_st" color="#FFFFFF" horizontalCenter="0" id="currentstep_label" styleName="labelVegTypes" fontSize="14"/>
+		<mx:Button y="10" label="D" click="play(event)" left="5" width="37"/>
+		<mx:Button y="10" label="II" click="stop(event)" left="45" width="37"/>
 	</mx:Canvas>
 	<mx:Button width="20" height="20" label="fullscreen" color="#FFFFFF" fontSize="14" fontWeight="normal" click="toggleFullScreen()"
 			   useHandCursor="true" mouseChildren="false" buttonMode="true" styleName="fullScreenOut" id="fullScreenButton" enabled="true" right="10" top="60"/>
@@ -244,9 +253,9 @@
 	<mx:Button styleName="btnZoomOut" height="24" width="24" top="88"
 			   mouseChildren="false" buttonMode="true" useHandCursor="true" id="btnZoomOut" click="map.setZoom(map.getZoom()-1)" left="15"/>
 	<mx:Canvas y="0" height="52" backgroundColor="#000000" backgroundAlpha="0.75" left="0" right="0">
-		<mx:Label x="10" y="10" text="Description" color="#FFFFFF" width="363" height="32" id="description_label"/>
-		<mx:Label y="10" text="author" color="#FFFFFF" width="185" height="19" textAlign="right" id="author_label" right="10"/>
-		<mx:Label y="30" text="more info" color="#FFFFFF" width="101" height="19" textAlign="right" textDecoration="underline" mouseChildren="false"  click="navigateToURL(new URLRequest(metadata.more_info_url));" right="10"/>
+		<mx:Label x="10" y="10" text="Description" color="#FFFFFF" width="363" height="32" id="description_label" styleName="labelVegTypes"/>
+		<mx:Label y="10" text="author" color="#FFFFFF" width="185" height="19" textAlign="right" id="author_label" right="10" styleName="labelVegTypes"/>
+		<mx:Button y="30" color="#FFD409" width="101" height="19" textAlign="right" textDecoration="underline" mouseChildren="false"  click="navigateToURL(new URLRequest(metadata.more_info_url));" right="10" styleName="explore" label="more info"/>
 	</mx:Canvas>
 	
 	
