@@ -1,0 +1,16 @@
+{
+    "imagesOverlays":[
+        "http://s3dsfdfdf/1992.jpg",
+        "http://s3dsfdfdf/1993.jpg",
+        "http://s3dsfdfdf/1994.jpg",
+        "http://s3dsfdfdf/1995.jpg",
+        "http://s3dsfdfdf/1995_2.jpg"
+    ],
+    "description":"This is an example experiment",
+    "author":"brasil@home",
+    "more_info_url":"http://brasilathome.org",
+    "bbox_minx":"-180",
+    "bbox_miny":"-85",
+    "bbox_maxx":"180",
+    "bbox_maxy":"85"
+}
